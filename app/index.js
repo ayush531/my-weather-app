@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Button } from 'react-native';
 import axios from 'axios';
-// Purani line:
-// const API_KEY = process.env.VITE_WEATHER_API_KEY;
 
-// Isse badal do:
-const API_KEY = "493647375a7f40528198f56dcc8c2a61";
+const API_KEY = '493647375a7f40528198f56dcc8c2a61';
 
-export default function App() {
+export default function WeatherApp() {
   const [weather, setWeather] = useState(null);
   const [city, setCity] = useState('');
 
