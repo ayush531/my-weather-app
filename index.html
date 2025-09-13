@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease-in-out;
+        }
+        .weather-icon {
+            font-size: 4rem;
+        }
+        .fade-in {
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+        .user-message {
+            background-color: #e6f3ff;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        .bot-message {
+            background-color: #f0f0f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div id="app" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 md:p-10 flex flex-col items-center">
+        <h1 class="text-4xl md:text-5xl font-bold text-center text-gray-800 mb-6">Weather App</h1>
+        <div class="w-full flex flex-col md:flex-row items-center gap-4 mb-6">
+            <input type="text" id="cityInput" placeholder="Enter city name" class="flex-grow p-4 md:p-5 rounded-full border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+            <button id="getWeatherBtn" class="bg-blue-600 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out">Get Weather</button>
+            <button id="locationBtn" class="bg-green-600 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:bg-green-700 transition duration-300 ease-in-out">My Location</button>
+        </div>
+
+        <div id="weatherContainer" class="w-full text-center fade-in hidden">
+            <p id="errorMsg" class="text-red-500 font-semibold text-lg"></p>
+            <div id="weatherInfo" class="mt-8">
+                <!-- Weather info will be dynamically inserted here -->
+            </div>
+            <div id="forecast" class="w-full mt-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 hidden">
+                <!-- Forecast will be dynamically inserted here -->
+            </div>
+            <div id="chatContainer" class="w-full mt-8 bg-gray-50 rounded-2xl p-6 shadow-inner">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Chat with AI Assistant</h3>
+                <div id="chatHistory" class="h-64 overflow-y-auto mb-4 p-2 bg-white border border-gray-200 rounded-xl flex flex-col space-y-2">
+                    <!-- Chat messages will appear here -->
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="chatInput" placeholder="Ask about the weather..." class="flex-grow p-3 rounded-full border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                    <button id="chatSendBtn" class="bg-gray-600 text-white rounded-full px-5 py-3 hover:bg-gray-700 transition duration-200">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '493647375a7f40528198f56dcc8c2a61';
+        const getWeatherBtn = document.getElementById('getWeatherBtn');
+        const locationBtn = document.getElementById('locationBtn');
+        const cityInput = document.getElementById('cityInput');
+        const weatherContainer = document.getElementById('weatherContainer');
+        const errorMsg = document.getElementById('errorMsg');
+        const weatherInfo = document.getElementById('weatherInfo');
+        const forecastContainer = document.getElementById('forecast');
+        const chatHistory = document.getElementById('chatHistory');
+        const chatInput = document.getElementById('chatInput');
+        const chatSendBtn = document.getElementById('chatSendBtn');
+
+        const chatLog = [];
+
+        function getWeatherIcon(id) {
+            if (id >= 200 && id < 300) return "fas fa-cloud-showers-heavy";
+            if (id >= 300 && id < 500) return "fas fa-cloud-drizzle";
+            if (id >= 500 && id < 600) return "fas fa-cloud-rain";
+            if (id >= 600 && id < 700) return "fas fa-snowflake";
+            if (id >= 700 && id < 800) return "fas fa-smog";
+            if (id === 800) return "fas fa-sun";
+            if (id > 800 && id < 900) return "fas fa-cloud";
+            return "fas fa-question-circle";
+        }
+
+        function getWeatherColor(id) {
+            if (id >= 200 && id < 300) return '#4f4f4f';
+            if (id >= 300 && id < 500) return '#b5c5c9';
+            if (id >= 500 && id < 600) return '#8aa8b6';
+            if (id >= 700 && id < 800) return '#e0eaf3';
+            if (id >= 700 && id < 800) return '#b0c4de';
+            if (id === 800) return '#87ceeb';
+            if (id > 800 && id < 900) return '#c0d6e4';
+            return '#f0f4f7';
+        }
+
+        function getAqiDescription(aqi) {
+            if (aqi === 1) return { text: "Good", color: "text-green-500" };
+            if (aqi === 2) return { text: "Fair", color: "text-green-600" };
+            if (aqi === 3) return { text: "Moderate", color: "text-yellow-500" };
+            if (aqi === 4) return { text: "Poor", color: "text-orange-500" };
+            if (aqi === 5) return { text: "Very Poor", color: "text-red-500" };
+            return { text: "N/A", color: "text-gray-500" };
+        }
+
+        async function fetchWeatherData(city) {
+            try {
+                weatherContainer.classList.add('hidden');
+                errorMsg.textContent = 'Loading...';
+
+                const geoRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${API_KEY}`);
+                const geoData = await geoRes.json();
+                if (geoData.length === 0) {
+                    errorMsg.textContent = 'Could not find that city.';
+                    weatherContainer.classList.remove('hidden');
+                    return;
+                }
+                const { lat, lon } = geoData[0];
+
+                const [weatherRes, forecastRes, aqiRes] = await Promise.all([
+                    fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`),
+                    fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`),
+                    fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`)
+                ]);
+
+                if (!weatherRes.ok || !forecastRes.ok || !aqiRes.ok) {
+                    throw new Error('Failed to fetch data from APIs.');
+                }
+
+                const weatherData = await weatherRes.json();
+                const forecastData = await forecastRes.json();
+                const aqiData = await aqiRes.json();
+                
+                displayWeather(weatherData, forecastData, aqiData);
+                errorMsg.textContent = '';
+                weatherContainer.classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                errorMsg.textContent = 'Could not fetch weather data. Please try again.';
+            }
+        }
+
+        function displayWeather(weatherData, forecastData, aqiData) {
+            document.body.style.backgroundColor = getWeatherColor(weatherData.weather[0].id);
+            const tempCelsius = Math.round(weatherData.main.temp - 273.15);
+            const tempFahrenheit = Math.round((weatherData.main.temp - 273.15) * 9/5 + 32);
+
+            const aqi = aqiData.list[0]?.main?.aqi || 'N/A';
+            const uvIndex = weatherData.uvi !== undefined ? weatherData.uvi : 'N/A'; // UV Index is often in a separate API call
+
+            weatherInfo.innerHTML = `
+                <div class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-lg fade-in mb-6 w-full">
+                    <h2 class="text-3xl font-bold mb-2">${weatherData.name}</h2>
+                    <i class="${getWeatherIcon(weatherData.weather[0].id)} text-6xl text-blue-500 my-4"></i>
+                    <p class="text-6xl font-extrabold text-gray-800">${tempCelsius}°C</p>
+                    <p class="text-xl text-gray-600 mt-2">${weatherData.weather[0].description}</p>
+                    <div class="flex gap-8 mt-6 text-lg text-gray-600">
+                        <p>Humidity: ${weatherData.main.humidity}%</p>
+                        <p>Wind: ${weatherData.wind.speed} m/s</p>
+                    </div>
+                    <div class="flex gap-8 mt-4 text-lg text-gray-600">
+                        <p><span class="${getAqiDescription(aqi).color}">AQI: ${aqi}</span> (${getAqiDescription(aqi).text})</p>
+                        <p>UV Index: ${uvIndex} (${uvIndex > 7 ? 'High' : 'Low'})</p>
+                    </div>
+                </div>
+            `;
+
+            displayForecast(forecastData);
+        }
+
+        function displayForecast(forecastData) {
+            forecastContainer.innerHTML = '';
+            forecastContainer.classList.remove('hidden');
+            const dailyData = forecastData.list.filter((item, index) => index % 8 === 0).slice(0, 5); // 5-day forecast
+            
+            dailyData.forEach(item => {
+                const temp = Math.round(item.main.temp - 273.15);
+                const date = new Date(item.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' });
+                const icon = getWeatherIcon(item.weather[0].id);
+
+                const forecastItem = document.createElement('div');
+                forecastItem.className = 'flex flex-col items-center bg-gray-50 p-4 rounded-xl shadow-md text-gray-800 fade-in';
+                forecastItem.innerHTML = `
+                    <p class="font-bold text-lg">${date}</p>
+                    <i class="${icon} text-3xl my-2 text-blue-500"></i>
+                    <p class="text-xl font-bold">${temp}°C</p>
+                `;
+                forecastContainer.appendChild(forecastItem);
+            });
+        }
+
+        async function handleChat() {
+            const userText = chatInput.value.trim();
+            if (!userText) return;
+
+            const weatherData = JSON.parse(localStorage.getItem('weatherData'));
+            const forecastData = JSON.parse(localStorage.getItem('forecastData'));
+
+            if (!weatherData) {
+                appendChatMessage('Please fetch weather data first.', 'bot');
+                return;
+            }
+
+            chatInput.value = '';
+            appendChatMessage(userText, 'user');
+            appendChatMessage('Typing...', 'bot');
+
+            const prompt = `You are an AI weather assistant. Based on this data for ${weatherData.name}:
+            - Temp: ${Math.round(weatherData.main.temp - 273.15)}°C
+            - Description: ${weatherData.weather[0].description}
+            - Humidity: ${weatherData.main.humidity}%
+            - Wind Speed: ${weatherData.wind.speed} m/s
+            - AQI: ${getAqiDescription(weatherData.aqi).text}
+            - UV Index: ${weatherData.uvi !== undefined ? weatherData.uvi : 'N/A'}
+            - Forecast: ${forecastData.list.filter((item, index) => index % 8 === 0).slice(0, 5).map(item => `${new Date(item.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' })}: ${Math.round(item.main.temp - 273.15)}°C, ${item.weather[0].description}`).join(', ')}
+            
+            Answer this user question concisely: "${userText}"`;
+
+            try {
+                const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const botResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
+                replaceLastMessage(botResponse, 'bot');
+            } catch (err) {
+                console.error(err);
+                replaceLastMessage('Error: Could not connect to the AI service.', 'bot');
+            }
+        }
+
+        function appendChatMessage(text, role) {
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = text;
+            msgDiv.className = `chat-message ${role}-message fade-in`;
+            chatHistory.appendChild(msgDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function replaceLastMessage(text, role) {
+            const messages = chatHistory.querySelectorAll('.chat-message');
+            if (messages.length > 0) {
+                const lastMessage = messages[messages.length - 1];
+                lastMessage.textContent = text;
+                lastMessage.className = `chat-message ${role}-message fade-in`;
+            } else {
+                appendChatMessage(text, role);
+            }
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        getWeatherBtn.addEventListener('click', () => {
+            if (cityInput.value.trim() !== '') {
+                fetchWeatherData(cityInput.value.trim());
+            }
+        });
+
+        locationBtn.addEventListener('click', async () => {
+            if (navigator.geolocation) {
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject);
+                    });
+                    const res = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&limit=1&appid=${API_KEY}`);
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        cityInput.value = data[0].name;
+                        fetchWeatherData(data[0].name);
+                    }
+                } catch (err) {
+                    errorMsg.textContent = 'Could not get your location.';
+                }
+            } else {
+                errorMsg.textContent = 'Geolocation is not supported by your browser.';
+            }
+        });
+
+        chatSendBtn.addEventListener('click', handleChat);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleChat();
+            }
+        });
+
+    </script>
+</body>
+</html>
